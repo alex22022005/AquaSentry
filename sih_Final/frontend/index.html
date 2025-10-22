@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Surveillance System</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-controls-left">
+            <button id="theme-toggle" title="Toggle Theme">
+                <svg id="theme-icon-sun" class="theme-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <svg id="theme-icon-moon" class="theme-icon" viewBox="0 0 24 24" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+            <div id="connection-status" class="connection-status disconnected">
+                <span id="connection-icon" class="icon"></span>
+                <span id="connection-text">Disconnected</span>
+            </div>
+        </div>
+        <div class="header-title-container">
+            <h1>Health Surveillance System</h1>
+        </div>
+        <div class="header-placeholder"></div>
+    </header>
+
+    <main>
+        <div class="live-data-container">
+            <div class="data-card glassmorphism"><div class="data-label">TDS Level</div><div class="data-value" id="tds-value">--</div><div class="data-unit">ppm</div><div id="tds-status" class="data-status">--</div><div class="progress-ring"><svg class="progress-ring-svg"><circle class="progress-ring-bg"></circle><circle class="progress-ring-circle" id="tds-progress"></circle></svg></div></div>
+            <div class="data-card glassmorphism"><div class="data-label">pH Level</div><div class="data-value" id="ph-value">--</div><div class="data-unit">pH</div><div id="ph-status" class="data-status">--</div><div class="progress-ring"><svg class="progress-ring-svg"><circle class="progress-ring-bg"></circle><circle class="progress-ring-circle" id="ph-progress"></circle></svg></div></div>
+            <div class="data-card glassmorphism"><div class="data-label">Turbidity</div><div class="data-value" id="turbidity-value">--</div><div class="data-unit">NTU</div><div id="turbidity-status" class="data-status">--</div><div class="progress-ring"><svg class="progress-ring-svg"><circle class="progress-ring-bg"></circle><circle class="progress-ring-circle" id="turbidity-progress"></circle></svg></div></div>
+        </div>
+
+        <div class="filter-controls-container glassmorphism">
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="live">Live</button><button class="filter-btn" data-filter="10m">Last 10 Min</button><button class="filter-btn" data-filter="1h">Last 1 Hour</button>
+                <button class="filter-btn" data-filter="1d">Last 24 Hours</button><button class="filter-btn" data-filter="7d">Last 7 Days</button><button class="filter-btn" data-filter="30d">Last 30 Days</button>
+            </div>
+        </div>
+
+        <div class="visualization-grid">
+            <div class="chart-container glassmorphism"><h3>TDS Trend (ppm)</h3><canvas id="tds-chart"></canvas></div>
+            <div class="chart-container glassmorphism"><h3>pH Trend</h3><canvas id="ph-chart"></canvas></div>
+            <div class="chart-container glassmorphism"><h3>Turbidity Trend (NTU)</h3><canvas id="turbidity-chart"></canvas></div>
+        </div>
+
+        <div class="suggestions-dashboard glassmorphism">
+            <div class="dashboard-header">
+                <h3>Maintenance Suggestions</h3>
+                <span class="header-note">(Based on last hour, updates every 2 min)</span>
+            </div>
+            <div id="suggestions-list" class="suggestions-list-container"></div>
+        </div>
+        
+        <!-- NEW: Disease Prevention Section -->
+        <div class="prevention-dashboard glassmorphism">
+             <div class="dashboard-header">
+                <h3>Disease Prevention Methods</h3>
+                <span class="header-note">(Primary focus updates every 1 min)</span>
+            </div>
+            <div id="prevention-list" class="prevention-list-container">
+                <!-- Prevention tips will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <div class="prediction-dashboard glassmorphism">
+            <div class="dashboard-header">
+                <h3>Waterborne Disease Risk Assessment</h3>
+                <div class="training-controls-container">
+                    <div id="progress-container" class="progress-container" style="display: none;">
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                            <span class="progress-bar-text" id="progress-bar-text"></span>
+                        </div>
+                        <span class="time-remaining-text" id="time-remaining-text"></span>
+                    </div>
+                    <div class="accuracy-gauge-container">
+                        <svg class="accuracy-gauge-svg" viewBox="0 0 100 100">
+                            <circle class="accuracy-gauge-bg" r="45" cx="50" cy="50"></circle>
+                            <circle class="accuracy-gauge-fill" id="accuracy-gauge-fill" r="45" cx="50" cy="50"></circle>
+                        </svg>
+                        <div class="accuracy-gauge-text-wrapper">
+                             <span id="accuracy-gauge-text" class="accuracy-gauge-text">--%</span>
+                             <div class="accuracy-gauge-label">Accuracy</div>
+                        </div>
+                    </div>
+                    <button id="train-button" class="train-btn">Train Model</button>
+                </div>
+            </div>
+            <div class="disease-cards" id="disease-cards-container"></div>
+        </div>
+    </main>
+
+    <div id="alert-container"></div>
+</body>
+<script src="charts.js"></script>
+<script src="script.js"></script>
+</html>

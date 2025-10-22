@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aqua-Sense | Analytical Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* slate-900 */
+        }
+        .widget {
+            background-color: #1e293b; /* slate-800 */
+            border: 1px solid #334155; /* slate-700 */
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .gauge-value {
+            font-weight: 900;
+            font-size: 3rem;
+            line-height: 1;
+        }
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+        /* Styles for the attractive filter button bar */
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            background-color: #334155; /* slate-700 */
+            color: #cbd5e1; /* slate-300 */
+            border: 2px solid transparent;
+            transition: all 0.2s ease-in-out;
+            font-weight: 600;
+        }
+        .filter-btn:hover {
+            background-color: #475569; /* slate-600 */
+        }
+        .filter-btn.active {
+            background-color: #4f46e5; /* indigo-600 */
+            color: #ffffff;
+            border-color: #818cf8; /* indigo-400 */
+        }
+        input[type="datetime-local"] {
+            background-color: #334155;
+            border: 1px solid #475569;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="text-slate-200">
+
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+        
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-white">Aqua-Sense Analytics</h1>
+                <p class="text-slate-400">Historical Water Quality Analysis</p>
+            </div>
+            <div id="connection-status" class="flex items-center gap-3 mt-4 sm:mt-0 text-lg font-semibold widget !p-3">
+                <div id="connection-indicator" class="w-4 h-4 rounded-full bg-yellow-500"></div>
+                <span id="connection-text">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- UPDATED: Added new 5m, 10m, and 30m filter buttons -->
+        <div class="widget col-span-full mb-6">
+            <div id="filter-bar" class="flex flex-wrap items-center gap-2">
+                <button class="filter-btn" data-range="5m">Last 5 Mins</button>
+                <button class="filter-btn" data-range="10m">Last 10 Mins</button>
+                <button class="filter-btn active" data-range="30m">Last 30 Mins</button>
+                <button class="filter-btn" data-range="1h">Last 1 Hour</button>
+                <button class="filter-btn" data-range="6h">Last 6 Hours</button>
+                <button class="filter-btn" data-range="24h">Last 24 Hours</button>
+                <button class="filter-btn" data-range="7d">Last 7 Days</button>
+                <button class="filter-btn" data-range="custom">Custom</button>
+            </div>
+            <div id="custom-range-container" class="flex-wrap items-end gap-4 mt-4 hidden">
+                <div class="flex-grow">
+                    <label for="start-date" class="block text-sm font-medium text-slate-400 mb-1">Start Date & Time</label>
+                    <input type="datetime-local" id="start-date">
+                </div>
+                 <div class="flex-grow">
+                    <label for="end-date" class="block text-sm font-medium text-slate-400 mb-1">End Date & Time</label>
+                    <input type="datetime-local" id="end-date">
+                </div>
+                <button id="apply-filter-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 h-10 self-end">
+                    Load Data
+                </button>
+            </div>
+        </div>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            
+            <div class="widget col-span-full grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div class="col-span-2 md:col-span-1 border-b-2 md:border-b-0 md:border-r-2 border-slate-700 pb-4 md:pb-0 md:pr-4">
+                    <h3 class="text-lg font-semibold text-slate-400">Total Entries</h3>
+                    <p id="total-entries" class="text-4xl font-extrabold text-white">0</p>
+                </div>
+                <div class="border-b-2 md:border-b-0 md:border-r-2 border-slate-700 pb-4 md:pb-0 md:pr-4">
+                    <h3 class="text-lg font-semibold text-slate-400">Today's Entries</h3>
+                    <p id="today-entries" class="text-4xl font-extrabold text-green-400">0</p>
+                </div>
+                <div class="md:border-r-2 border-slate-700 md:pr-4">
+                    <h3 class="text-lg font-semibold text-slate-400">Past Week</h3>
+                    <p id="week-entries" class="text-4xl font-extrabold text-cyan-400">0</p>
+                </div>
+                <div>
+                     <h3 class="text-lg font-semibold text-slate-400">ML Accuracy</h3>
+                     <p id="model-accuracy" class="text-4xl font-extrabold text-green-400">...%</p>
+                </div>
+            </div>
+
+            <div class="widget col-span-1">
+                <h2 class="text-lg font-semibold text-slate-400 mb-2">Latest TDS</h2>
+                <div class="flex items-baseline gap-2">
+                    <span id="tds-value" class="gauge-value text-cyan-400">0</span>
+                    <span class="font-medium text-slate-400">ppm</span>
+                </div>
+                <p id="tds-status" class="text-sm text-slate-500 mt-2">No data loaded</p>
+            </div>
+            <div class="widget col-span-1">
+                <h2 class="text-lg font-semibold text-slate-400 mb-2">Latest pH Level</h2>
+                 <div class="flex items-baseline gap-2">
+                    <span id="ph-value" class="gauge-value text-violet-400">0.0</span>
+                </div>
+                <p id="ph-status" class="text-sm text-slate-500 mt-2">No data loaded</p>
+            </div>
+            <div class="widget col-span-1">
+                <h2 class="text-lg font-semibold text-slate-400 mb-2">Latest Turbidity</h2>
+                 <div class="flex items-baseline gap-2">
+                    <span id="turbidity-value" class="gauge-value text-amber-400">0</span>
+                    <span class="font-medium text-slate-400">NTU</span>
+                </div>
+                <p id="turbidity-status" class="text-sm text-slate-500 mt-2">No data loaded</p>
+            </div>
+            <div class="widget col-span-1">
+                <h2 class="text-lg font-semibold text-slate-400 mb-2">Data Points in Range</h2>
+                <p id="data-points" class="text-6xl font-extrabold text-white mt-4">0</p>
+            </div>
+
+            <div class="widget col-span-full md:col-span-2 text-center">
+                 <h2 class="text-xl font-semibold text-slate-400 mb-6">Data Summary (Selected Range)</h2>
+                 <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-400">TDS</h3>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Avg:</span> <span id="avg-tds">0</span></p>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Min:</span> <span id="min-tds">0</span></p>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Max:</span> <span id="max-tds">0</span></p>
+                    </div>
+                     <div>
+                        <h3 class="text-lg font-bold text-slate-400">pH</h3>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Avg:</span> <span id="avg-ph">0.0</span></p>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Min:</span> <span id="min-ph">0.0</span></p>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Max:</span> <span id="max-ph">0.0</span></p>
+                    </div>
+                     <div>
+                        <h3 class="text-lg font-bold text-slate-400">Turbidity</h3>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Avg:</span> <span id="avg-turb">0</span></p>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Min:</span> <span id="min-turb">0</span></p>
+                        <p class="text-2xl mt-1"><span class="font-semibold text-slate-500 text-base">Max:</span> <span id="max-turb">0</span></p>
+                    </div>
+                 </div>
+            </div>
+            
+            <div class="widget col-span-full md:col-span-2">
+                <h2 class="text-lg font-semibold text-slate-400 mb-4">Disease Risk Analysis (Latest Reading)</h2>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="diseaseRiskChart"></canvas>
+                </div>
+            </div>
+
+            <div class="widget col-span-full">
+                <h2 class="text-lg font-semibold text-slate-400 mb-4">Sensor History</h2>
+                <div class="chart-container">
+                    <canvas id="sensorHistoryChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const BACKEND_URL = 'http://localhost:8080';
+        
+        // --- DOM Elements ---
+        const elements = {
+            tdsValue: document.getElementById('tds-value'), phValue: document.getElementById('ph-value'), turbidityValue: document.getElementById('turbidity-value'),
+            tdsStatus: document.getElementById('tds-status'), phStatus: document.getElementById('ph-status'), turbidityStatus: document.getElementById('turbidity-status'),
+            modelAccuracy: document.getElementById('model-accuracy'), dataPoints: document.getElementById('data-points'),
+            connectionIndicator: document.getElementById('connection-indicator'), connectionText: document.getElementById('connection-text'),
+            filterBar: document.getElementById('filter-bar'), customRangeContainer: document.getElementById('custom-range-container'),
+            startDate: document.getElementById('start-date'), endDate: document.getElementById('end-date'), applyFilterBtn: document.getElementById('apply-filter-btn'),
+            avgTds: document.getElementById('avg-tds'), minTds: document.getElementById('min-tds'), maxTds: document.getElementById('max-tds'),
+            avgPh: document.getElementById('avg-ph'), minPh: document.getElementById('min-ph'), maxPh: document.getElementById('max-ph'),
+            avgTurb: document.getElementById('avg-turb'), minTurb: document.getElementById('min-turb'), maxTurb: document.getElementById('max-turb'),
+            totalEntries: document.getElementById('total-entries'), todayEntries: document.getElementById('today-entries'), weekEntries: document.getElementById('week-entries'),
+        };
+
+        // --- Chart.js Configuration ---
+        Chart.defaults.color = 'rgba(148, 163, 184, 0.7)'; 
+        Chart.defaults.borderColor = 'rgba(51, 65, 85, 0.5)';
+
+        const sensorHistoryChart = new Chart('sensorHistoryChart', {
+            type: 'line', data: { datasets: [
+                { label: 'TDS (ppm)', data: [], borderColor: 'rgb(34, 211, 238)', backgroundColor: 'rgba(34, 211, 238, 0.1)', yAxisID: 'yTDS', tension: 0.3, fill: true },
+                { label: 'pH', data: [], borderColor: 'rgb(167, 139, 250)', backgroundColor: 'rgba(167, 139, 250, 0.1)', yAxisID: 'yPH', tension: 0.3, fill: true },
+                { label: 'Turbidity (NTU)', data: [], borderColor: 'rgb(251, 191, 36)', backgroundColor: 'rgba(251, 191, 36, 0.1)', yAxisID: 'yTurbidity', tension: 0.3, fill: true }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'minute' }, ticks: { color: 'rgb(148, 163, 184)'} }, yTDS: { type: 'linear', position: 'left', title: { display: true, text: 'TDS (ppm)' } }, yPH: { type: 'linear', position: 'right', title: { display: true, text: 'pH' }, grid: { drawOnChartArea: false } }, yTurbidity: { type: 'linear', position: 'right', title: { display: true, text: 'Turbidity (NTU)' }, grid: { drawOnChartArea: false } } }, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        const diseaseRiskChart = new Chart('diseaseRiskChart', { type: 'radar', data: { labels: ['Cholera', 'Typhoid', 'Hepatitis A', 'Dysentery', 'Diarrheal'], datasets: [{ label: 'Risk Probability', data: [0, 0, 0, 0, 0], backgroundColor: 'rgba(255, 99, 132, 0.2)', borderColor: 'rgb(255, 99, 132)' }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { r: { angleLines: { color: 'rgba(148, 163, 184, 0.2)' }, grid: { color: 'rgba(148, 163, 184, 0.2)' }, pointLabels: { color: 'rgb(203, 213, 225)', font: { size: 14 } }, ticks: { backdropColor: 'rgba(0,0,0,0)', color: 'rgb(148, 163, 184)', stepSize: 25, max: 100, min: 0 } } } }
+        });
+        
+        // --- UI Update Functions ---
+        function renderData({ history, summary }) {
+            elements.dataPoints.textContent = history.length;
+            if (history.length === 0) {
+                alert("No data found for the selected time range.");
+                return;
+            }
+            sensorHistoryChart.data.datasets.forEach(ds => ds.data = []);
+            history.forEach(r => {
+                sensorHistoryChart.data.datasets[0].data.push({x: new Date(r.timestamp), y: r.tds});
+                sensorHistoryChart.data.datasets[1].data.push({x: new Date(r.timestamp), y: r.ph});
+                sensorHistoryChart.data.datasets[2].data.push({x: new Date(r.timestamp), y: r.turbidity});
+            });
+            sensorHistoryChart.update();
+            
+            elements.avgTds.textContent = summary.avgTDS.toFixed(0);
+            elements.minTds.textContent = summary.minTDS.toFixed(0);
+            elements.maxTds.textContent = summary.maxTDS.toFixed(0);
+            elements.avgPh.textContent = summary.avgPH.toFixed(1);
+            elements.minPh.textContent = summary.minPH.toFixed(1);
+            elements.maxPh.textContent = summary.maxPH.toFixed(1);
+            elements.avgTurb.textContent = summary.avgTurbidity.toFixed(0);
+            elements.minTurb.textContent = summary.minTurbidity.toFixed(0);
+            elements.maxTurb.textContent = summary.maxTurbidity.toFixed(0);
+
+            const latestRecord = history[history.length - 1];
+            updateGauges(latestRecord);
+            updateDiseaseChart(latestRecord);
+        }
+
+        function updateGauges(data) {
+            elements.tdsValue.textContent = data.tds?.toFixed(0) || 0;
+            elements.phValue.textContent = data.ph?.toFixed(1) || 0;
+            elements.turbidityValue.textContent = data.turbidity?.toFixed(0) || 0;
+            elements.tdsStatus.textContent = data.tds > 500 ? 'High: Poor quality' : 'Normal: Good quality';
+            elements.phStatus.textContent = data.ph < 6.5 || data.ph > 8.5 ? 'Alert: Outside range' : 'Normal: Safe range';
+            elements.turbidityStatus.textContent = data.turbidity > 5 ? 'High: Cloudy water' : 'Normal: Clear water';
+        }
+        
+        function updateDiseaseChart(data) {
+            diseaseRiskChart.data.datasets[0].data = [ (data.cholera_prob * 100), (data.typhoid_prob * 100), (data.hepatitis_a_prob * 100), (data.dysentery_prob * 100), (data.diarrheal_prob * 100) ];
+            diseaseRiskChart.update();
+        }
+
+        // --- Data Fetching ---
+        async function fetchHistoryData() {
+            const activeButton = elements.filterBar.querySelector('.active');
+            const range = activeButton.dataset.range;
+            let startDate, endDate;
+            const now = new Date();
+
+            if (range === 'custom') {
+                if (!elements.startDate.value || !elements.endDate.value) {
+                    alert("Please select a start and end date for the custom range.");
+                    return;
+                }
+                startDate = new Date(elements.startDate.value).toISOString();
+                endDate = new Date(elements.endDate.value).toISOString();
+            } else {
+                endDate = now.toISOString();
+                let durationMs = 0;
+                // UPDATED: Added logic for all new time ranges
+                const rangesInMinutes = { '5m': 5, '10m': 10, '30m': 30, '1h': 60, '6h': 360 };
+                const rangesInDays = { '24h': 1, '7d': 7 };
+                if (rangesInMinutes[range]) {
+                    durationMs = rangesInMinutes[range] * 60 * 1000;
+                } else if (rangesInDays[range]) {
+                    durationMs = rangesInDays[range] * 24 * 60 * 60 * 1000;
+                }
+                startDate = new Date(now.getTime() - durationMs).toISOString();
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/mongo-history?startDate=${startDate}&endDate=${endDate}`);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const data = await response.json();
+                renderData(data);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                alert("Failed to load data from the server. Please check the connection and try again.");
+            }
+        }
+
+        async function fetchEntryStats() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/entry-stats`);
+                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const stats = await response.json();
+                elements.totalEntries.textContent = stats.total;
+                elements.todayEntries.textContent = stats.today;
+                elements.weekEntries.textContent = stats.pastWeek;
+            } catch (error) {
+                 console.error("Error fetching entry stats:", error);
+            }
+        }
+
+        // --- WebSocket for Server Status ---
+        const socket = new WebSocket(BACKEND_URL.replace('http', 'ws'));
+        socket.onopen = () => {
+            elements.connectionIndicator.className = 'w-4 h-4 rounded-full bg-green-500';
+            elements.connectionText.textContent = "Server: Connected";
+        };
+        socket.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'accuracy_update') {
+                elements.modelAccuracy.textContent = `${(msg.payload.accuracy * 100).toFixed(2)}%`;
+            }
+        };
+        socket.onclose = () => {
+            elements.connectionIndicator.className = 'w-4 h-4 rounded-full bg-red-500';
+            elements.connectionText.textContent = "Server: Disconnected";
+        };
+        
+        // --- Event Listeners & Initialization ---
+        elements.filterBar.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                elements.filterBar.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                if (e.target.dataset.range === 'custom') {
+                    elements.customRangeContainer.classList.remove('hidden');
+                    elements.customRangeContainer.classList.add('flex');
+                } else {
+                    elements.customRangeContainer.classList.add('hidden');
+                    fetchHistoryData();
+                }
+            }
+        });
+
+        elements.applyFilterBtn.addEventListener('click', fetchHistoryData);
+
+        window.addEventListener('load', () => {
+            const now = new Date();
+            // Set default for custom range picker
+            elements.endDate.value = now.toISOString().slice(0, 16);
+            elements.startDate.value = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+            // Initial data load
+            fetchHistoryData();
+            fetchEntryStats();
+        });
+    </script>
+</body>
+</html>
+

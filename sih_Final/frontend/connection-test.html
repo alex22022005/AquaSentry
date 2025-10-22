@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test - Health Surveillance System</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: #f0f0f0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background: #2ecc71; }
+        .disconnected { background: #e74c3c; }
+        .reconnecting { background: #f39c12; }
+        button { padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }
+        .disconnect-btn { background: #e74c3c; color: white; }
+        .connect-btn { background: #2ecc71; color: white; }
+        #log { background: #2a2a4e; padding: 10px; border-radius: 5px; height: 300px; overflow-y: auto; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    
+    <div id="status" class="status disconnected">
+        Status: Disconnected
+    </div>
+    
+    <button id="disconnect-btn" class="disconnect-btn">Simulate Disconnect</button>
+    <button id="connect-btn" class="connect-btn">Reconnect</button>
+    <button onclick="location.href='index.html'">Back to Main App</button>
+    
+    <h3>Connection Log:</h3>
+    <div id="log"></div>
+    
+    <script>
+        let ws = null;
+        let reconnectInterval = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 2000;
+        
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const connectBtn = document.getElementById('connect-btn');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${timestamp}] ${message}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function updateStatus(status, message) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = `Status: ${message}`;
+        }
+        
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket(`ws://${window.location.host}`);
+                
+                ws.onopen = () => {
+                    log('✅ System connected successfully');
+                    updateStatus('connected', 'Connected - Monitoring Active');
+                    reconnectAttempts = 0;
+                    clearInterval(reconnectInterval);
+                    disconnectBtn.disabled = false;
+                    connectBtn.disabled = true;
+                };
+                
+                ws.onclose = () => {
+                    log('❌ System disconnected - attempting to restore connection');
+                    updateStatus('disconnected', 'Disconnected - Reconnecting...');
+                    disconnectBtn.disabled = true;
+                    connectBtn.disabled = false;
+                    startReconnection();
+                };
+                
+                ws.onerror = (error) => {
+                    log('⚠️ Connection error occurred: ' + error);
+                    updateStatus('disconnected', 'Connection Error');
+                };
+                
+                ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    log('📨 Received: ' + message.type);
+                };
+                
+            } catch (error) {
+                log('❌ Failed to create WebSocket: ' + error.message);
+                startReconnection();
+            }
+        }
+        
+        function startReconnection() {
+            if (reconnectInterval) return;
+            
+            updateStatus('reconnecting', 'Reconnecting...');
+            
+            reconnectInterval = setInterval(() => {
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    log(`🔄 Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+                    updateStatus('reconnecting', `Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`);
+                    connectWebSocket();
+                } else {
+                    log('❌ Max reconnection attempts reached');
+                    updateStatus('disconnected', 'Connection Failed');
+                    clearInterval(reconnectInterval);
+                    reconnectInterval = null;
+                    connectBtn.disabled = false;
+                }
+            }, reconnectDelay);
+        }
+        
+        disconnectBtn.onclick = () => {
+            if (ws) {
+                log('🔌 Manually disconnecting...');
+                ws.close();
+            }
+        };
+        
+        connectBtn.onclick = () => {
+            log('🔌 Manually connecting...');
+            reconnectAttempts = 0;
+            clearInterval(reconnectInterval);
+            reconnectInterval = null;
+            connectWebSocket();
+        };
+        
+        // Initialize
+        log('🚀 Starting connection test...');
+        connectWebSocket();
+    </script>
+</body>
+</html>
